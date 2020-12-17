@@ -23,7 +23,10 @@ import javafx.util.Duration;
  *
  * @author Tom Schindl
  */
-//Slightly modified to fit our needs
+//Slightly modified to fit with NumberPicker
+
+
+
 public class FlingPane extends Region {
     private ObjectProperty<Node> content;
     private Rectangle clipRect = new Rectangle();
@@ -36,7 +39,13 @@ public class FlingPane extends Region {
         BOTH, HORIZONTAL, VERTICAL
     }
 
-    public FlingPane(double backToY, OnScrollDone onScroll) {
+    /**
+     * Pane that simulates fling typically seen in mobile devices
+     * @param offsetY initial offset of y, used to center number picker
+     * @param itemHeight height of an item in number picker, should also match spacing between them
+     * @param onScrollDone called when scrolling has finished and item has been selected
+     */
+    public FlingPane(double offsetY, double itemHeight, OnScrollDone onScrollDone) {
         setFocusTraversable(false);
         setClip(clipRect);
         contentProperty().addListener(new ChangeListener<Node>() {
@@ -147,9 +156,9 @@ public class FlingPane extends Region {
                         double viewHeight = getHeight();
 
                         if (controlHeight < viewHeight && targetY < controlHeight) {
-                            targetY = backToY;
-                        } else if (targetY > backToY) {
-                            targetY = backToY;
+                            targetY = offsetY;
+                        } else if (targetY > offsetY) {
+                            targetY = offsetY;
                         } else if (targetY < (controlHeight - viewHeight) * -1) {
                             targetY = (controlHeight - viewHeight) * -1;
                         } else {
@@ -157,10 +166,10 @@ public class FlingPane extends Region {
 
                             if (controlHeight < viewHeight && targetY < controlHeight) {
                                 targetY = -100.0;
-                                backBouncingY = backToY;
-                            } else if (targetY > backToY) {
+                                backBouncingY = offsetY;
+                            } else if (targetY > offsetY) {
                                 targetY = 100.0;
-                                backBouncingY = backToY;
+                                backBouncingY = offsetY;
                             } else if (targetY < (controlHeight - viewHeight) * -1) {
                                 targetY = (controlHeight - viewHeight) * -1 - 100;
                                 backBouncingY = (controlHeight - viewHeight) * -1;
@@ -175,7 +184,17 @@ public class FlingPane extends Region {
 
                     if (targetY != null) {
                         translate.setFromY(content.get().getTranslateY());
-                        translate.setToY(targetY);
+                        //Modifications for NumberPicker///////////////////////////////
+                        /*
+                        When user stop scrolling,
+                        gets closest number and snaps to it.
+
+                        Sends current selected index to number picker
+                         */
+                        long height = (long) (itemHeight*2L);//height of item*2 to account for padding between items
+                        long closest = height * (Math.round(targetY / height)) +((long)offsetY-height);
+                        translate.setToY(closest);
+                        onScrollDone.onItemSelected(closest == height ? 0 : Math.abs(closest/80) + 1);
                     }
 
                     if (backBouncingX != null || backBouncingY != null) {
@@ -206,22 +225,7 @@ public class FlingPane extends Region {
 
                             @Override
                             public void handle(ActionEvent event) {
-                                //Handles after fling, snaps to closest item and returns the current item selected to number picker
-                                double currentTrans = content.get().getTranslateY();
-                                System.out.println(currentTrans);
-                                long closest =60 * (Math.round(currentTrans / 60));
-                                System.out.println("CLOS "+closest);
-                                //onScroll.onScroll(closest == 60 ? 1 : (Math.abs(closest) / 60) +1);
-                                if (closest != currentTrans) {
-                                    TranslateTransition translate = new TranslateTransition(new Duration(100), content.get());
-                                    translate.setInterpolator(Interpolator.EASE_OUT);
-                                    translate.setFromY(currentTrans);
-                                    translate.setToY(closest);
-                                    translate.play();
-                                    currentTransition.set(translate);
-                                } else {
-                                    currentTransition.set(null);
-                                }
+                                currentTransition.set(null);
 
                             }
                         });
